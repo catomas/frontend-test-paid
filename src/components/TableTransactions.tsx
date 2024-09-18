@@ -44,7 +44,8 @@ export const TableTransactions = () => {
     switch (status) {
       case "APPROVED":
         return "bg-green-500 text-white";
-      case "DECLINED" || "ERROR":
+      case "DECLINED":
+      case "ERROR":
         return "bg-red-500 text-white";
       case "PENDING":
         return "bg-yellow-500 text-black";
