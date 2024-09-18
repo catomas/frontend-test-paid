@@ -4,7 +4,7 @@ import axios from "axios";
 export const submitPayment = async (data: PaymentData) => {
   try {
     const response = await axios.post(
-      "http://localhost:3000/api/transactions",
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/transactions`,
       data
     );
     return response.data;
@@ -17,7 +17,7 @@ export const submitPayment = async (data: PaymentData) => {
 export const getTransaction = async (transactionId: string) => {
   try {
     const response = await axios.get(
-      `http://localhost:3000/api/transactions/${transactionId}/status`
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/transactions/${transactionId}/status`
     );
     return response.data;
   } catch (error) {
