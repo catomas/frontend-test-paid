@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -33,7 +34,11 @@ import { submitPayment } from "@/actions/transactions-actions";
 import { useRouter } from "next/navigation";
 import { ClipLoader } from "react-spinners";
 import Image from "next/image";
-import luhnChk from "@/utils/luhnCheck";
+
+import { setPaymentData } from "@/redux/paymentSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { determineCardType, isValidCardNumber } from "@/utils/cardValidations";
+import { RootState } from "@/redux/store";
 
 interface ModalPayProps {
   productId: string;
@@ -41,22 +46,21 @@ interface ModalPayProps {
 }
 
 export const ModalPay = ({ productId, userId }: ModalPayProps) => {
+  const dispatch = useDispatch();
+
+  const paymentData = useSelector(
+    (state: RootState) => state.payment.paymentData
+  );
+
   const [cardType, setCardType] = useState<string | null>(null);
   const [isCardValid, setIsCardValid] = useState<boolean | null>(null);
-
-  const VISA = /^4[0-9]{3}-?[0-9]{4}-?[0-9]{4}-?[0-9]{4}$/;
-  const MASTERCARD = /^5[1-5][0-9]{2}-?[0-9]{4}-?[0-9]{4}-?[0-9]{4}$/;
-  const AMEX = /^3[47][0-9-]{16}$/;
-  const CABAL = /^(6042|6043|6044|6045|6046|5896){4}[0-9]{12}$/;
-  const NARANJA =
-    /^(589562|402917|402918|527571|527572|0377798|0377799)[0-9]*$/;
 
   const formShema = z.object({
     cardNumber: z
       .string()
       .min(10, "Card number must be at least 10 digits")
       .max(16, "Card number must be at most 16 digits"),
-    cardHolder: z.string().min(1, "Card holder name is required"),
+    cardHolder: z.string().min(5, "Card holder be at least 5 characters"),
     expiryDate: z.string().min(1, "Expiry date is required"),
     cvc: z
       .string()
@@ -78,52 +82,52 @@ export const ModalPay = ({ productId, userId }: ModalPayProps) => {
     postalCode: z.string().min(1, "Postal code is required"),
   });
 
+  // const formData = useForm<PaymentDataForm>({
+  //   resolver: zodResolver(formShema),
+  //   defaultValues: {
+  //     cardNumber: "4242424242424242",
+  //     cardHolder: "José Pérez",
+  //     expiryDate: "08 / 28",
+  //     cvc: "123",
+  //     phoneNumber: "573307654321",
+  //     fullName: "Juan Alfonso Pérez Rodriguez",
+  //     legalId: "1234567890",
+  //     email: "example@wompi.co",
+  //     address: "Calle 34 # 56 - 78",
+  //     city: "Bogota",
+  //     region: "Cundinamarca",
+  //     postalCode: "111111",
+  //   },
+  // });
+
   const formData = useForm<PaymentDataForm>({
     resolver: zodResolver(formShema),
-    defaultValues: {
-      cardNumber: "4242424242424242",
-      cardHolder: "José Pérez",
-      expiryDate: "08 / 28",
-      cvc: "123",
-      phoneNumber: "573307654321",
-      fullName: "Juan Alfonso Pérez Rodriguez",
-      legalId: "1234567890",
-      email: "example@wompi.co",
-      address: "Calle 34 # 56 - 78",
-      city: "Bogota",
-      region: "Cundinamarca",
-      postalCode: "111111",
-    },
+    defaultValues: paymentData
+      ? {
+          cardNumber: paymentData.cardInfo.number,
+          cardHolder: paymentData.cardInfo.card_holder,
+          expiryDate: `${paymentData.cardInfo.exp_month} / ${paymentData.cardInfo.exp_year}`,
+          cvc: paymentData.cardInfo.cvc,
+          phoneNumber: paymentData.customerData.phone_number,
+          fullName: paymentData.customerData.full_name,
+          legalId: paymentData.customerData.legal_id,
+          email: paymentData.customerData.customer_email,
+          address: paymentData.customerData.address_line_1,
+          city: paymentData.customerData.city,
+          region: paymentData.customerData.region,
+          postalCode: paymentData.customerData.postal_code,
+        }
+      : {},
   });
 
   const { watch } = formData;
 
   const cardNumber = watch("cardNumber");
 
-  const determineCardType = (number: string) => {
-    if (VISA.test(number)) return "VISA";
-    if (MASTERCARD.test(number)) return "MASTERCARD";
-    if (AMEX.test(number)) return "AMEX";
-    if (CABAL.test(number)) return "CABAL";
-    if (NARANJA.test(number)) return "NARANJA";
-    return null;
-  };
-
-  const isValidCardNumber = (number: string) => {
-    return (
-      (VISA.test(number) ||
-        MASTERCARD.test(number) ||
-        AMEX.test(number) ||
-        CABAL.test(number) ||
-        NARANJA.test(number)) &&
-      luhnChk(number)
-    );
-  };
-
   useEffect(() => {
     setCardType(determineCardType(cardNumber));
     setIsCardValid(isValidCardNumber(cardNumber));
-  }, [cardNumber, determineCardType]);
+  }, [cardNumber]);
 
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -159,11 +163,15 @@ export const ModalPay = ({ productId, userId }: ModalPayProps) => {
         postal_code: data.postalCode,
       },
     };
+
+    console.log("Dispatching payment data:", paymentData); // Log de los datos de pago
+    dispatch(setPaymentData(paymentData));
+
     try {
       const response = await submitPayment(paymentData);
       console.log(response);
-      // Redirigir a otra página después de la transacción
-      router.push(`success/${response.transaction.id}`); // Asegúrate de que la ruta sea correcta
+
+      router.push(`success/${response.transaction.id}`);
     } catch (error) {
       console.error("Error submitting payment:", error);
     } finally {
@@ -172,7 +180,7 @@ export const ModalPay = ({ productId, userId }: ModalPayProps) => {
   };
 
   const handleExpiryDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, ""); // Remove non-numeric characters
+    let value = e.target.value.replace(/\D/g, "");
     if (value.length >= 3) {
       value = value.slice(0, 2) + " / " + value.slice(2, 4);
     }
@@ -187,11 +195,14 @@ export const ModalPay = ({ productId, userId }: ModalPayProps) => {
           Pay with credit card
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent
+        className={`max-w-2xl max-h-[80vh] overflow-y-auto ${
+          isLoading ? "overflow-hidden" : ""
+        }`}
+      >
         {isLoading && (
-          <div className="fixed inset-0 bg-black opacity-30 z-40"></div>
+          <div className="fixed h-screen inset-0 bg-black opacity-30 z-40"></div>
         )}
-
         <DialogHeader>
           <DialogTitle className="text-2xl">Complete your purchase</DialogTitle>
           <DialogDescription>
@@ -199,8 +210,8 @@ export const ModalPay = ({ productId, userId }: ModalPayProps) => {
           </DialogDescription>
         </DialogHeader>
         {isLoading && (
-          <div className="loading-overlay z-50 flex items-center justify-center">
-            <ClipLoader size={80} color={"#123abc"} loading={isLoading} />
+          <div className="loading-overlay  fixed inset-0 z-50 flex items-center justify-center">
+            <ClipLoader size={150} color={"#123abc"} loading={isLoading} />
           </div>
         )}
         <Form {...formData}>

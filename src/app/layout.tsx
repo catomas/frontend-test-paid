@@ -4,6 +4,8 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import Header from "@/components/Header";
 
+import ReduxProvider from "@/providers/ReduxProvider";
+
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
@@ -26,15 +28,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-r from-blue-500 to-purple-600`}
-        >
-          <Header />
-          {children}
-        </body>
-      </html>
-    </ClerkProvider>
+    <ReduxProvider>
+      <ClerkProvider>
+        <html lang="en">
+          <body
+            className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-r from-blue-500 to-purple-600`}
+          >
+            <Header />
+            {children}
+          </body>
+        </html>
+      </ClerkProvider>
+    </ReduxProvider>
   );
 }
