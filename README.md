@@ -43,3 +43,7 @@ yarn dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+### Deployment
+
+The project is deployed on Vercel. You can access it [https://frontend-test-paid.vercel.app/](https://frontend-test-paid.vercel.app/).
